@@ -1,0 +1,24 @@
+{
+  "original": "She go to the stoe everyday, making sure to arrives at the store promptly.",
+  "proofread": "She goes to the store every day, making sure to arrive at the store promptly.",
+  "original_token": [
+    "She", "go", "to", "the", "stoe", "everyday,", "making", "sure", "to", "arrives", "at", "the", "store", "promptly."
+  ],
+  "proofread_token": [
+    "She", "goes", "to", "the", "store", "every day,", "making", "sure", "to", "arrive", "at", "the", "store", "promptly."
+  ],
+  "original_text": [
+    { "index": 1, "word": "go", "type": "error" },
+    { "index": 4, "word": "stoe", "type": "error" },
+    { "index": 5, "word": "everyday,", "type": "error" },
+    { "index": 9, "word": "arrives", "type": "error" },
+    { "index": 13, "word": "promptly.", "type": "error" }
+  ],
+  "revised_text": [
+    { "index": 1, "word": "goes", "type": "suggestion", "suggestions": ["goes", "leaves", "moves"] },
+    { "index": 4, "word": "store", "type": "suggestion", "suggestions": ["store"] },
+    { "index": 5, "word": "every day,", "type": "suggestion", "suggestions": ["every day,"] },
+    { "index": 9, "word": "arrive", "type": "suggestion", "suggestions": ["arrive"] },
+    { "index": 13, "word": "promptly.", "type": "suggestion", "suggestions": ["promptly."] }
+  ]
+}
