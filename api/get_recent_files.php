@@ -24,7 +24,7 @@ function getProcessedUploadsByUser($userId)
                 b.proof_data_path as json_data
             FROM uploads a
             INNER JOIN processed_files b ON a.upload_id = b.upload_id
-            WHERE a.user_id = :user_id
+            WHERE a.user_id = :user_id and b.processed_file_path <> '' and b.proof_data_path <> '' ORDER BY a.upload_id DESC
         ");
 
         $stmt->bindParam(':user_id', $userId);

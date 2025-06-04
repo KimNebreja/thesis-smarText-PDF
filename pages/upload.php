@@ -41,7 +41,7 @@ session_start();
             </header>
 
             <div class="upload-container">
-                <div id="notify" class="alert" style="text-align: center;"></div>
+                <div id="notify" class="alert" style="text-align: center;" hidden></div>
 
                 <div class="upload-card">
                     <div class="upload-header">
@@ -154,66 +154,145 @@ session_start();
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
+        async function processProofReadingByGPT(filename) {
+            const url = `../api/submit_proofreading.php?dbFilename=${encodeURIComponent(filename)}`;
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                })
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Error processing proofreading:', error);
+                return {
+                    error: true,
+                    message: error.message
+                };
+            }
+        }
 
-        uploadForm.addEventListener('submit', function(e) {
+        async function updateProcessedFiles(upload_id, pdf, json, time, improvements) {
+            const url = `../api/submit_processed_files.php`;
+
+            const data = {
+                id: upload_id,
+                pdf: pdf,
+                json: json,
+                time: time,
+                improvements: improvements
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const responseData = await response.json();
+                return responseData;
+
+            } catch (error) {
+                console.error('Error processing proofreading:', error);
+                return {
+                    error: true,
+                    message: error.message
+                };
+            }
+        }
+
+
+        uploadForm.addEventListener('submit', async function(e) {
             e.preventDefault();
+
             const file = fileInput.files[0];
-            // const customName = document.getElementById('custom_name').value;
             const formData = new FormData();
 
             if (!file) {
                 alert('Please select a file to upload');
                 return;
             }
+
             if (file.type !== 'application/pdf') {
                 alert('Only PDF files are allowed');
                 return;
             }
 
-            uploadBtn.innerHTML = 'Proofreading the File. Please wait...'
-
+            uploadBtn.innerHTML = 'Proofreading the File. Please wait...';
 
             formData.append('file', file);
-            fetch('../api/submit_upload_files.php', {
+
+            try {
+                const response = await fetch('../api/submit_upload_files.php', {
                     method: 'POST',
                     body: formData
-                })
-                .then(response => {
-                    return response.text();
-                })
-                .then(responseText => {
-                    try {
-                        const data = JSON.parse(responseText);
-                        if (data.success) {
-                            let secondsLeft = 5
-                            showAlert('success', `File uploaded successfully! <br> Redirecting to Dashboard in ${secondsLeft}...`)
+                });
 
-                            uploadBtn.innerHTML = 'Upload and Process'
-                            document.getElementById('uploadBtn').disabled = true
-                            document.getElementById('pdf_file').disabled = false
-                            document.getElementById('pdf_file').value = ''
-                            fileInfo.textContent = ''
+                const responseText = await response.text();
+
+                const data = JSON.parse(responseText);
+
+                if (data.success) {
+                    const proofread = await processProofReadingByGPT(data.generatedfilename);
+
+                    if (proofread?.message === 'success') {
+
+                        let upload_id = data.upload_id
+                        let elapsed_time = proofread?.info.elapsed_time_seconds
+                        let generated_pdf = proofread?.info.final_pdf_filename
+                        let generated_json = proofread?.info.json_filename
+                        let errors = proofread?.info.total_improvements
+
+                        let updateProcessFile = await updateProcessedFiles(
+                            upload_id,
+                            generated_pdf,
+                            generated_json,
+                            elapsed_time,
+                            errors
+                        )
+
+                        if (updateProcessFile.message == 'success') {
+                            let secondsLeft = 5;
+                            showAlert('success', `File uploaded successfully! <br> Redirecting to Dashboard in ${secondsLeft}...`);
+
+                            uploadBtn.innerHTML = 'Upload and Process';
+                            document.getElementById('uploadBtn').disabled = true;
+                            document.getElementById('pdf_file').disabled = false;
+                            document.getElementById('pdf_file').value = '';
+                            fileInfo.textContent = '';
 
                             const countdownInterval = setInterval(() => {
-                                secondsLeft--
-                                showAlert('success', `File uploaded successfully! <br> Redirecting to Dashboard in ${secondsLeft}...`)
-                            }, 1000)
+                                secondsLeft--;
+                                showAlert('success', `File uploaded successfully! <br> Redirecting to Dashboard in ${secondsLeft}...`);
+                            }, 1000);
 
                             setTimeout(() => {
-                                clearInterval(countdownInterval)
-                                window.location.href = './dashboard.php'
-                            }, 5000)
-
+                                clearInterval(countdownInterval);
+                                // window.location.href = './dashboard.php';
+                            }, 5000);
                         } else {
-                            showAlert('error', data.message)
+                            showAlert('error', 'Proofreading failed or unexpected response.');
                         }
-                    } catch (error) {
-                        showAlert('error', 'Failed to upload file, please try again!')
+
+                    } else {
+                        showAlert('error', 'Proofreading failed or unexpected response.');
                     }
-                })
-                .catch(error => {
-                    showAlert('error', 'An error occurred while uploading the file!')
-                });
+                } else {
+                    showAlert('error', data.message);
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                showAlert('error', 'An error occurred while uploading the file!');
+            }
         });
 
         // Logout function

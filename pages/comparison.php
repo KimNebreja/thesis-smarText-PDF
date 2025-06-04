@@ -49,14 +49,15 @@ if (!isset($_SESSION['user_id'])) {
             </header>
 
             <div class="comparison-container" id="comparison_main_container" hidden>
+                <div id="notify" class="alert" style="text-align: center;" hidden></div>
                 <div class="comparison-header">
                     <div class="comparison-title">
                         <h3>Document Comparison</h3>
                         <p class="file-name" id="filenamePDF"></p>
                     </div>
                     <div class="comparison-actions">
-                        <button class="btn-primary" id="acceptAllBtn" disabled>
-                            <span class="button-text">Accept All Changes</span>
+                        <button class="btn-primary" id="acceptAllChangesBtn" disabled>
+                            <span class="button-text">Apply Changes</span>
                         </button>
                         <button class="btn-primary" id="previewBtn" onclick="displayPDF()">
                             <span class="button-text">Preview PDF</span>
@@ -116,19 +117,23 @@ if (!isset($_SESSION['user_id'])) {
                         </div>
                     </div>
                 </div>
-
-                <div class="comparison-legend">
-                    <div class="legend-item">
-                        <span class="legend-color error"></span>
-                        <span>Error</span>
+                <div class="comparison-legend" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem">
+                    <div style="display: flex; gap: 1rem">
+                        <div class="legend-item">
+                            <span class="legend-color error"></span>
+                            <span>Error</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color suggestion"></span>
+                            <span>Suggestion</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color final"></span>
+                            <span>Accepted</span>
+                        </div>
                     </div>
-                    <div class="legend-item">
-                        <span class="legend-color suggestion"></span>
-                        <span>Suggestion</span>
-                    </div>
-                    <div class="legend-item">
-                        <span class="legend-color final"></span>
-                        <span>Accepted</span>
+                    <div class="legend-item" style="font-weight: bold;">
+                        <span>Total Improvements: </span><span id="totalimprovementslegend">0</span>
                     </div>
                 </div>
             </div>
@@ -147,8 +152,12 @@ if (!isset($_SESSION['user_id'])) {
             </div>
         </main>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/diff@5.1.0/dist/diff.min.js"></script>
     <script>
         let processedFileInformation = null
+        let originalJsonData = null;
+        let loadedJSONfile = null;
+
 
         // Logout function
         function logout() {
@@ -175,7 +184,9 @@ if (!isset($_SESSION['user_id'])) {
                     console.log('Fetched File Data:', data.info)
                     processedFileInformation = data.info
                     displayComparison(data.info[0]?.proof_data_path)
+                    loadedJSONfile = data.info[0]?.proof_data_path
                     document.getElementById('filenamePDF').innerHTML = processedFileInformation[0]?.processed_file_path
+                    document.getElementById('totalimprovementslegend').innerHTML = processedFileInformation[0]?.error_count
                 } else {
                     console.error('Error from API:', data.message)
                 }
@@ -197,7 +208,7 @@ if (!isset($_SESSION['user_id'])) {
 
         function openModal(pdfPath) {
             document.getElementById("myModal").style.display = 'block';
-            document.getElementById("pdfIframe").src = '../generated/' + pdfPath;
+            document.getElementById("pdfIframe").src = '../processed_pdfs/' + pdfPath;
         }
 
         function closeModal() {
@@ -205,76 +216,173 @@ if (!isset($_SESSION['user_id'])) {
             document.getElementById("pdfIframe").src = ''; // Clear the iframe source when closing
         }
 
+        function getChangedParagraphs() {
+            const revisedParagraphs = document.querySelectorAll('#revisedText p[data-changed="true"]');
+            const changed = [];
+
+            revisedParagraphs.forEach((p) => {
+                const paragraphIndex = [...document.querySelectorAll('#revisedText p')].indexOf(p);
+                const originalTokens = originalJsonData.paragraphs[paragraphIndex]?.proofread_token || [];
+
+                const changedTokens = [];
+                const reconstructedTokens = [];
+
+                p.childNodes.forEach((node) => {
+                    let word = null;
+                    let idx = null;
+
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        if (node.classList.contains('suggestion-container')) {
+                            word = node.querySelector('.suggestion-word')?.textContent?.trim();
+                            idx = parseInt(node.getAttribute('data-idx'), 10);
+                        } else {
+                            word = node.textContent.trim();
+                            idx = parseInt(node.getAttribute('data-idx'), 10);
+                        }
+
+                        if (!isNaN(idx) && word !== null) {
+                            reconstructedTokens.push({
+                                idx,
+                                word
+                            });
+
+                            const originalToken = originalTokens.find(t => t.idx === idx);
+                            if (originalToken && originalToken.word !== word) {
+                                changedTokens.push({
+                                    word,
+                                    idx
+                                });
+                            }
+                        }
+                    }
+                });
+
+                // Sort by idx and build the cleaned-up paragraph text
+                reconstructedTokens.sort((a, b) => a.idx - b.idx);
+                const paragraphText = reconstructedTokens.map(t => t.word).join(' ');
+
+                if (changedTokens.length > 0) {
+                    changed.push({
+                        paragraph_index: paragraphIndex + 1,
+                        changed_tokens: changedTokens,
+                        paragraph_text: paragraphText
+                    });
+                }
+            });
+
+            return changed;
+        }
+
+
+
+
+        async function acceptAllChanges() {
+            const changedParagraphs = getChangedParagraphs();
+
+            try {
+                const response = await fetch('../api/submit_accept_changes.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        json_file: loadedJSONfile,
+                        changed: changedParagraphs,
+                        pdf_file: processedFileInformation[0]?.processed_file_path
+                    })
+                });
+
+                const result = await response.json();
+                console.log('Server response:', result);
+                return result;
+            } catch (error) {
+                console.error('Error submitting changes:', error);
+                return {
+                    error: true
+                };
+            }
+        }
+
+
 
 
 
         async function displayComparison(json_file) {
             try {
-                const response = await fetch(`../json/${json_file}`)
-                if (!response.ok) throw new Error('Network response was not ok')
+                const response = await fetch(`../jsons/${json_file}`);
+                if (!response.ok) throw new Error('Network response was not ok');
 
-                const data = await response.json()
+                const data = await response.json();
+                originalJsonData = data;
 
-                const originalTextField = document.getElementById('originalText')
-                const revisedTextField = document.getElementById('revisedText')
+                const originalTextField = document.getElementById('originalText');
+                const revisedTextField = document.getElementById('revisedText');
 
-                // clear the content
-                originalTextField.innerHTML = ''
-                revisedTextField.innerHTML = ''
+                // Clear existing content
+                originalTextField.innerHTML = '';
+                revisedTextField.innerHTML = '';
 
-                console.log(data.original_token)
-                console.log(data.revised_text)
+                for (const paragraph of data.paragraphs) {
+                    const originalErrors = paragraph.original_text || [];
+                    const revisedCorrections = paragraph.revised_text || [];
 
-                // Loop through the original tokens and check if they exist in original_text
-                const originalTokens = data.original_token.map((word, index) => {
-                    const originalError = data.original_text.find(item => item.index === index);
+                    // ORIGINAL TEXT - Highlight errors
+                    const originalTokens = paragraph.original_token.map((token) => {
+                        const error = originalErrors.find(err => err.index === token.idx && err.type === 'error');
+                        if (error) {
+                            return `<span class="error">${token.word}</span>`;
+                        }
+                        return token.word;
+                    });
 
-                    // If there's an error in the original text, apply error styling
-                    // if index of error find, create a span to add style (red backgroud) in able to identify what is the text has been revised.
-                    if (originalError && originalError.type === 'error') {
-                        return `<span class="error">${word}</span>`;
-                    }
+                    // PROOFREAD TEXT - Handle inserted, replaced, corrected
+                    const revisedTokens = paragraph.proofread_token.map((token) => {
+                        const correction = revisedCorrections.find(c => c.index === token.idx);
 
-                    // Default case if no errors or suggestions
-                    return word;
-                });
+                        // Default display is always the token's original word
+                        const displayWord = token.word;
 
-                // Loop through the revised tokens and display them
-                const revisedTokens = data.proofread_token.map((word, index) => {
-                    const revisedWord = data.revised_text.find(item => item.index === index);
+                        if (correction) {
+                            // Case: replaced — show dropdown
+                            if (correction.type === 'replaced' && correction.suggestions.length > 0) {
+                                const options = correction.suggestions
+                                    .map(s => `<option value="${s}">${s}</option>`)
+                                    .join('');
+                                return `
+                                            <span class="suggestion-container" data-idx="${token.idx}">
+                                                <span class="suggestion-word">${displayWord}</span>
+                                                <select class="floating-select" style="display:none;">
+                                                    ${options}
+                                                </select>
+                                            </span>
+                                        `;
+                            }
 
-                    // If there are suggestions for the word in revised text, show suggestion
-                    if (revisedWord && revisedWord.suggestions && revisedWord.suggestions.length > 0) {
-                        const firstSuggestion = revisedWord.suggestions[0];
+                            // Case: corrected — wrap with accepted class
+                            if (correction.type === 'corrected') {
+                                return `<span class="accepted" data-idx="${token.idx}">${displayWord}</span>`;
+                            }
 
-                        // If only one suggestion, apply it
-                        if (revisedWord.suggestions.length === 1) {
-                            return `<span class="suggestion-container"><span class="accepted">${firstSuggestion}</span></span>`;
+                            // Case: inserted — wrap with accepted class (still use token.word)
+                            if (correction.type === 'inserted') {
+                                return `<span class="accepted" data-idx="${token.idx}">${displayWord}</span>`;
+                            }
+
+                            // Case: removed — skip rendering
+                            if (correction.type === 'removed') {
+                                return '';
+                            }
                         }
 
-                        // If multiple suggestions, show dropdown
-                        const options = revisedWord.suggestions
-                            .map(s => `<option value="${s}">${s}</option>`)
-                            .join('');
+                        // Default case — show original word
+                        return `<span data-idx="${token.idx}">${displayWord}</span>`;
+                    });
 
-                        return `
-                    <span class="suggestion-container">
-                        <span class="suggestion-word">${firstSuggestion}</span>
-                        <select class="floating-select" style="display:none;">
-                            ${options}
-                        </select>
-                    </span>
-                `;
-                    }
+                    originalTextField.innerHTML += `<p>${originalTokens.join(' ')}</p><br>`;
+                    revisedTextField.innerHTML += `<p>${revisedTokens.join(' ')}</p><br>`;
+                }
 
-                    return word;
-                });
-
-                // Render HTML for original and revised text
-                originalTextField.innerHTML = `<p>${originalTokens.join(' ')}</p>`;
-                revisedTextField.innerHTML = `<p>${revisedTokens.join(' ')}</p>`;
-
-                // Show dropdown on click
+                // Click to toggle dropdown
                 document.querySelectorAll('.suggestion-word').forEach((wordElement) => {
                     wordElement.addEventListener('click', function(event) {
                         document.querySelectorAll('.floating-select').forEach(dropdown => {
@@ -287,18 +395,23 @@ if (!isset($_SESSION['user_id'])) {
                     });
                 });
 
-                // Update suggestion on selection
+                // Dropdown selection changes text
                 document.querySelectorAll('.floating-select').forEach((dropdown) => {
                     dropdown.addEventListener('change', function() {
                         const selectedOption = this.value;
                         const suggestionWord = this.previousElementSibling;
                         suggestionWord.textContent = selectedOption;
                         this.style.display = 'none';
-                        document.getElementById('acceptAllBtn').disabled = false
+
+                        const paragraph = this.closest('p');
+                        paragraph?.setAttribute('data-changed', 'true');
+
+                        document.getElementById('acceptAllChangesBtn')?.removeAttribute('disabled');
                     });
+
                 });
 
-                // Close dropdown if clicked outside
+                // Hide dropdowns on outside click
                 document.addEventListener('click', function(event) {
                     document.querySelectorAll('.floating-select').forEach((dropdown) => {
                         if (!dropdown.contains(event.target) && !dropdown.previousElementSibling.contains(event.target)) {
@@ -312,12 +425,46 @@ if (!isset($_SESSION['user_id'])) {
             }
         }
 
-        document.getElementById('acceptAllBtn').addEventListener('click', function() {
+
+        document.getElementById('acceptAllChangesBtn').addEventListener('click', async function() {
             this.disabled = true;
-            document.getElementById('previewBtn').disabled = true
-            document.getElementById('downloadBtn').disabled = true
             this.innerHTML = 'Saving changes...';
-        });
+            document.getElementById('previewBtn').disabled = true;
+            document.getElementById('downloadBtn').disabled = true;
+
+            let acceptChanges = await acceptAllChanges()
+
+            console.log(acceptChanges)
+
+            if (acceptChanges.success) {
+                const params = new URLSearchParams(window.location.search);
+                const id = params.get('id');
+
+                const mainContainer = document.getElementById('comparison_main_container');
+                const secondaryContainer = document.getElementById('comparison_secondary_container');
+
+                if (mainContainer && secondaryContainer) {
+                    if (id) {
+                        // Show the main container and hide the secondary container
+                        mainContainer.style.display = 'block';
+                        secondaryContainer.style.display = 'none';
+                        // await displayComparison(id);
+                        fetchFileInformation(id)
+                    } else {
+                        // Hide the main container and show the secondary container
+                        mainContainer.style.display = 'none';
+                        secondaryContainer.style.display = 'flex';
+                    }
+                }
+                showAlert('success', 'Applying changes is successful!')
+                document.getElementById('acceptAllChangesBtn').innerHTML = 'Apply Changes';
+                document.getElementById('previewBtn').disabled = false;
+                document.getElementById('downloadBtn').disabled = false;
+            } else {
+                showAlert('error', 'Applying changes is unsuccessful! <br> Please try again')
+            }
+
+        })
 
 
         window.onload = async () => {
@@ -343,7 +490,7 @@ if (!isset($_SESSION['user_id'])) {
         };
     </script>
     <script src="../scripts/auth.js"></script>
-    <script src="../scripts/comparison.js"></script>
+    <script src="../assets/showAlert.js"></script>
     <script src="../scripts/tts.js"></script>
 </body>
 

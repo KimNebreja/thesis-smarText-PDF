@@ -15,22 +15,26 @@ try {
     }
 
     $file = $_FILES['file'];
-    $customName = isset($_POST['custom_name']) ? $_POST['custom_name'] : null;
 
     if ($file['error'] !== UPLOAD_ERR_OK) {
         throw new Exception("File upload error code: " . $file['error']);
     }
 
-    $uploadDir = '../uploads/';
+    $uploadDir = '../original_pdfs/';
     if (!is_dir($uploadDir) && !mkdir($uploadDir, 0777, true)) {
         throw new Exception("Failed to create upload directory.");
     }
 
     $originalFilename = basename($file['name']);
+
+    // Extract filename without extension and sanitize it
     $customName = pathinfo($originalFilename, PATHINFO_FILENAME);
     $customName = preg_replace('/[^a-zA-Z0-9_\-]/', '', $customName);
 
-    $uniqueName = uniqid() . '_' . $customName . '.pdf';
+    $uniqueID = uniqid();
+    // Generate a unique filename for storage (but not for DB custom_name)
+    $uniqueName = $uniqueID . '_' . $customName . '.pdf';
+    $generatedUniqueFilename = $uniqueID . '_' . $customName;
     $finalPath = $uploadDir . $uniqueName;
     $tempPath = $uploadDir . 'temp_' . $uniqueName;
 
@@ -59,7 +63,7 @@ try {
 
     $stmt->bindParam(':user_id', $userId);
     $stmt->bindParam(':original_filename', $originalFilename);
-    $stmt->bindParam(':custom_name', $uniqueName);
+    $stmt->bindParam(':custom_name', $customName); // ✅ Insert name WITHOUT .pdf
     $stmt->bindParam(':file_size', $fileSize);
     $stmt->bindParam(':file_path', $finalPath);
     $stmt->bindParam(':upload_date', $uploadDate);
@@ -81,17 +85,16 @@ try {
         throw new Exception("Failed to finalize file upload.");
     }
 
-
     $error = '';
-    // Now call the external API (simulate it here)
+    // Simulate the external API call (e.g., FastAPI)
     $returnFromFastAPI = [
-        "json_filename" => "reports.json",
-        "final_pdf_filename" => "CritiquePaperISO209001.pdf",
-        "elapsed_time_seconds" => 27.56,
-        "total_errors" => 50
+        "json_filename" => '',
+        "final_pdf_filename" => '',
+        "elapsed_time_seconds" => 0,
+        "total_errors" => 0
     ];
 
-    // Step 4: Insert into `processed_files` table, this is after the API call
+    // Step 4: Insert into `processed_files` table (after processing)
     try {
         $conn->beginTransaction();
         $stmt = $conn->prepare("INSERT INTO processed_files (
@@ -113,21 +116,21 @@ try {
         $conn->commit();
     } catch (Exception $e) {
         // Rollback if the API call or DB insert fails
-        $error = $e;
         $conn->rollBack();
-        throw new Exception("Failed to process file in API." . $e);
+        throw new Exception("Failed to process file in API. " . $e->getMessage());
     }
 
     echo json_encode([
         'success' => true,
         'message' => 'File uploaded and processed successfully',
         'upload_id' => $uploadId,
-        'custom_name' => $uniqueName,
+        'custom_name' => $customName,
         'file_size' => $fileSize,
         'upload_date' => $uploadDate,
-        'uploadedId' => $uploadId
+        'uploadedId' => $uploadId,
+        'filenamewithid' => $finalPath,
+        'generatedfilename' => $generatedUniqueFilename
     ]);
-
 } catch (Exception $e) {
     echo json_encode([
         'success' => false,

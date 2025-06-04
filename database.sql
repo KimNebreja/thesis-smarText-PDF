@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS processed_files (
     INDEX idx_upload (upload_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Error details table
+-- Error details table  
 CREATE TABLE IF NOT EXISTS error_details (
     error_id INT PRIMARY KEY AUTO_INCREMENT,
     upload_id INT NOT NULL,
