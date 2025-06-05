@@ -39,7 +39,7 @@
 1. **Clone the repository**
    ```sh
    cd C:/xampp/htdocs
-   git clone <repo-url>
+   git clone https://github.com/marksxiety/thesis-smarText-PDF.git
    ```
 
 2. **Install Python dependencies**
