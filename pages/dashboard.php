@@ -59,8 +59,8 @@ if (!isset($_SESSION['user_id'])) {
                 <div class="dashboard-card">
                     <div class="card-icon"><i class="fas fa-chart-line"></i></div>
                     <div class="card-content">
-                        <h3>Processing Rate</h3>
-                        <div class="stat-value" id="processingRate">0%</div>
+                        <h3>Average Improvements</h3>
+                        <div class="stat-value" id="avgImprovements">0</div>
                     </div>
                 </div>
 
@@ -111,7 +111,7 @@ if (!isset($_SESSION['user_id'])) {
                     // Check if the response is successful
                     if (data.message === 'success') {
                         document.getElementById('totalProcessed').textContent = data.stats.totalProcessed;
-                        document.getElementById('processingRate').textContent = data.stats.processingRate;
+                        document.getElementById('avgImprovements').textContent = data.stats.averageErrorCount;
                         document.getElementById('avgTime').textContent = data.stats.averageTime;
                     } else {
                         console.error('Failed to load stats:', data.message);

@@ -18,6 +18,7 @@ function getProcessedUploadsByUser($userId)
                 b.processed_file_path AS proofread_file,
                 a.file_size,
                 b.processing_time,
+                b.error_count,
                 a.upload_date
             FROM uploads a
             INNER JOIN processed_files b ON a.upload_id = b.upload_id
@@ -45,21 +46,22 @@ $results = getProcessedUploadsByUser($user_id);
 // Calculate statistics
 $totalProcessed = count($results['data']);
 $totalProcessingTime = 0;
+$totalErrors = 0;
 
 foreach ($results['data'] as $row) {
-    // Sum all processing times
     $totalProcessingTime += (int)$row['processing_time'];
+    $totalErrors += isset($row['error_count']) ? (int)$row['error_count'] : 0;
 }
 
-// Calculate average processing time
 $averageTime = $totalProcessed > 0 ? round($totalProcessingTime / $totalProcessed, 2) : 0;
+$averageErrorCount = $totalProcessed > 0 ? round($totalErrors / $totalProcessed, 2) : 0;
 
 echo json_encode([
     'message' => $results['success'] ? 'success' : 'error',
     'result' => $results['data'],
     'stats' => [
         'totalProcessed' => $totalProcessed,
-        'processingRate' => $totalProcessed > 0 ? '100%' : '0%',
+        'averageErrorCount' => $averageErrorCount,
         'averageTime' => $averageTime . 's'
     ]
 ]);

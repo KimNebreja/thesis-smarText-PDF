@@ -323,6 +323,7 @@ if (!isset($_SESSION['user_id'])) {
                 revisedTextField.innerHTML = '';
 
                 for (const paragraph of data.paragraphs) {
+                    console.log(paragraph.proofread_token)
                     const originalErrors = paragraph.original_text || [];
                     const revisedCorrections = paragraph.revised_text || [];
 
@@ -345,9 +346,10 @@ if (!isset($_SESSION['user_id'])) {
                         if (correction) {
                             // Case: replaced — show dropdown
                             if (correction.type === 'replaced' && correction.suggestions.length > 0) {
-                                const options = correction.suggestions
-                                    .map(s => `<option value="${s}">${s}</option>`)
-                                    .join('');
+                                const options = [
+                                    '<option value="">choose suggestion</option>',
+                                    ...correction.suggestions.map(s => `<option value="${s}">${s}</option>`)
+                                ].join('');
                                 return `
                                             <span class="suggestion-container" data-idx="${token.idx}">
                                                 <span class="suggestion-word">${displayWord}</span>
@@ -398,6 +400,11 @@ if (!isset($_SESSION['user_id'])) {
                 // Dropdown selection changes text
                 document.querySelectorAll('.floating-select').forEach((dropdown) => {
                     dropdown.addEventListener('change', function() {
+
+                        if (this.value === '') {
+                            return
+                        }
+
                         const selectedOption = this.value;
                         const suggestionWord = this.previousElementSibling;
                         suggestionWord.textContent = selectedOption;

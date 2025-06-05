@@ -27,44 +27,45 @@ if (!$jsonContent || !isset($jsonContent['paragraphs'])) {
 $updatedCount = 0;
 
 foreach ($data['changed'] as $change) {
-    $paragraphIndex = $change['paragraph_index'] - 1;
+    $targetParagraphId = $change['paragraph_index']; // This is actually paragraph_id
     $tokensToUpdate = $change['changed_tokens'];
     $paragraphText = $change['paragraph_text'] ?? '';
 
-    if (!isset($jsonContent['paragraphs'][$paragraphIndex])) {
-        continue;
-    }
+    // Find the correct paragraph by paragraph_id
+    foreach ($jsonContent['paragraphs'] as &$paragraph) {
+        if ((int)$paragraph['paragraph_id'] === (int)$targetParagraphId) {
+            // ✅ Update full proofread text
+            $paragraph['proofread'] = $paragraphText;
 
-    // ✅ Update the full proofread text
-    $jsonContent['paragraphs'][$paragraphIndex]['proofread'] = $paragraphText;
+            // ✅ Update proofread_token words
+            foreach ($tokensToUpdate as $tokenChange) {
+                $targetIdx = $tokenChange['idx'];
+                $newWord = $tokenChange['word'];
 
-    $proofreadTokens = &$jsonContent['paragraphs'][$paragraphIndex]['proofread_token'];
+                foreach ($paragraph['proofread_token'] as &$token) {
+                    if ((int)$token['idx'] === (int)$targetIdx) {
+                        $token['word'] = $newWord;
+                        $updatedCount++;
+                        break;
+                    }
+                }
 
-    foreach ($tokensToUpdate as $tokenChange) {
-        $targetIdx = $tokenChange['idx'];
-        $newWord = $tokenChange['word'];
-
-        foreach ($proofreadTokens as &$token) {
-            if ((int)$token['idx'] === (int)$targetIdx) {
-                $token['word'] = $newWord;
-                $updatedCount++;
-                break;
+                // ✅ Update revised_text suggestions
+                foreach ($paragraph['revised_text'] as &$revisedEntry) {
+                    if ((int)$revisedEntry['index'] === (int)$targetIdx) {
+                        $revisedEntry['suggestions'] = array_values(array_filter(
+                            $revisedEntry['suggestions'],
+                            fn($suggestion) => $suggestion !== $newWord
+                        ));
+                        break;
+                    }
+                }
             }
-        }
-
-        $revisedText = &$jsonContent['paragraphs'][$paragraphIndex]['revised_text'];
-
-        foreach ($revisedText as &$revisedEntry) {
-            if ((int)$revisedEntry['index'] === (int)$targetIdx) {
-                $revisedEntry['suggestions'] = array_values(array_filter(
-                    $revisedEntry['suggestions'],
-                    fn($suggestion) => $suggestion !== $newWord
-                ));
-                break;
-            }
+            break; // Paragraph found, no need to keep looping
         }
     }
 }
+unset($paragraph); // Clean up reference
 
 // Build paragraph ID string for FastAPI based on incoming changes
 $paragraphIds = [];

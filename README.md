@@ -1,17 +1,14 @@
-# Grammar Checker API
+# SmarText PDF
 
-This project provides an **API for automatic grammar correction** of PDF documents. It converts a PDF to Word, checks and corrects grammar using **OpenAI GPT models**, generates a JSON report of corrections, and outputs a corrected PDF.
+**SmarText PDF** is an intelligent PDF proofreading tool powered by **GPT-4o**. It extracts and analyzes text from PDF documents, detects grammatical and stylistic issues, and provides high-quality suggestions for improvement.
 
----
+## ✨ Features
 
-## Features
-
-- **PDF to Word conversion** (using Microsoft Word automation)
-- **Grammar correction** for each paragraph using **OpenAI GPT** (high accuracy, context-aware)
-- **JSON report** with detailed token-level diffs and suggestions
-- **Word to PDF conversion**
-- **REST API** endpoint for easy integration
-
+- 🔍 Extracts text from PDF documents
+- 🤖 Uses GPT-4o to detect grammar, spelling, and tone issues
+- 💡 Suggests improved phrasing and wording
+- 📄 Paragraph-by-paragraph correction with side-by-side view
+- 📤 Export options for cleaned text or revision summaries
 ---
 
 ## Requirements
@@ -29,6 +26,7 @@ This project provides an **API for automatic grammar correction** of PDF documen
   - `pywin32`
   - `openai`
   - `python-dotenv`
+  - `asyncio`
 
 **Install all dependencies using:**
 ```sh
