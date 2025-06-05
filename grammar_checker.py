@@ -58,36 +58,22 @@ def convert_word_to_pdf(updated_docx_path, final_pdf_path):
     convert(updated_docx_path, final_pdf_path)
     print(f"Final PDF saved as: {final_pdf_path}")
 
-# ---------------------------
-# Short/uncorrectable text filter
-# ---------------------------
-def is_short_or_uncorrectable(text):
-    """
-    Returns True if the text is too short, a URL, a number, or contains no letters.
-    Used to skip unnecessary GPT calls.
-    """
-    tokens = re.findall(r"\w+", text)
-    if len(tokens) < 5:
-        if text.strip().startswith("http") or re.match(r"^\d+(\.\d+)*$", text.strip()):
-            return True
-        if not re.search(r"[a-zA-Z]", text):
-            return True
-    return False
 
 # ---------------------------
 # GPT-based grammar correction
 # ---------------------------
 async def gpt_proofread(text):
     """
-    Calls OpenAI GPT using a tool/function to proofread and classify changes.
-    Returns a structured JSON object with corrections and diffs.
+    Calls OpenAI GPT using a function/tool to proofread and classify changes.
+    Ensures the structured JSON format and retries up to 3 times if needed.
     """
-    
+
+    # Normalize excessive spaces
     text = re.sub(r"[^\S\r\n]{2,}", " ", text)
 
     tool_schema = {
         "name": "proofread_output",
-        "description": "Returns a corrected version of the sentence and tracks changes.",
+        "description": "Returns corrected content with detailed revisions for grammar, formality, and punctuation.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -122,16 +108,19 @@ async def gpt_proofread(text):
                         "properties": {
                             "type": {
                                 "type": "string",
-                                "enum": ["replaced", "inserted", "removed", "corrected"]
+                                "enum": ["replaced", "corrected", "inserted", "removed"]
                             },
                             "original_idx": {"type": ["integer", "null"]},
                             "proofread_idx": {"type": ["integer", "null"]},
                             "original_word": {"type": "string"},
                             "proofread_word": {"type": "string"},
                             "suggestion": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "maxItems": 3
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "pattern": "^[^\\s]+$"
+                            },
+                            "maxItems": 3
                             }
                         },
                         "required": [
@@ -145,42 +134,77 @@ async def gpt_proofread(text):
         }
     }
 
+
     system_msg = (
-        "You are an AI assistant from a system named SmarText PDF, which focuses on proofreading and correcting grammar and spelling. "
-        "Your task is to fix grammar and spelling issues in user-provided text and return a structured JSON response using the `proofread_output` function. "
-        "Ensure tokens are normalized (no excessive whitespace), and include punctuation changes as valid entries in the change list. "
+        "You are a professional AI assistant integrated into a proofreading system called SmarText PDF. "
+        "You will receive raw text extracted from PDFs and must correct grammar, improve tone to be more formal, "
+        "and fix any punctuation issues. When proofreading, keep the core meaning intact but ensure formality and clarity.\n\n"
+
+        "Your output must strictly use the function `proofread_output` with all required fields: "
+        "`original`, `corrected`, `original_token`, `proofread_token`, and `changes`.\n\n"
+
+        "Each token must be processed as a word or punctuation mark — no grouping or skipping. "
+        "If punctuation changes (e.g., '.', ',', '?', '!') or is added/removed, you must include it in `changes`. "
+        "Maintain accurate `idx` for both `original_token` and `proofread_token`.\n\n"
+
+        "For each change:\n"
+        "- Use `corrected` for fixing grammar or punctuation with minor word adjustments.\n"
+        "- Use `replaced` when words or phrases are changed into different terms (and optionally include up to 3 suggestions).\n"
+        "- Use `inserted` if new words were added.\n"
+        "- Use `removed` if unnecessary words or punctuation were deleted.\n\n"
+
+        "Every `change` must include `original_word`, `proofread_word`, and `suggestion` even if suggestions only include the accepted version.\n"
+        "Ensure the `suggestion` list is meaningful — if only one correction exists, include it alone. If multiple rewrites are possible, list alternatives.\n\n"
+
+        "Do not skip punctuation or formatting changes. The goal is accurate proofreading that can be traced token-by-token and visually rendered with detailed changes."
     )
 
-    try:
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": f"Proofread this sentence:\n{text}"}
-            ],
-            tools=[{"type": "function", "function": tool_schema}],
-            tool_choice="auto",
-            temperature=0.3,
-        )
 
-        function_call = response.choices[0].message.tool_calls[0].function
-        result = json.loads(function_call.arguments)
 
-        if not result.get("proofread_token"):
-            print(f"[WARNING] Empty proofread_token for paragraph:\n{repr(text[:200])}")
-        return result
-
-    except Exception as e:
-        print(f"[ERROR] Tool call failed or malformed.\nInput: {repr(text[:200])}")
-        print("Error:", e)
+    def ensure_structure(result, original_text):
         return {
-            "original": text,
-            "corrected": text,
-            "original_token": [],
-            "proofread_token": [],
-            "changes": []
+            "original": result.get("original", original_text),
+            "corrected": result.get("corrected", original_text),
+            "original_token": result.get("original_token", []),
+            "proofread_token": result.get("proofread_token", []),
+            "changes": result.get("changes", [])
         }
 
+    for attempt in range(1, 4):
+        try:
+            response = await client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": f"Proofread this sentence:\n{text}"}
+                ],
+                tools=[{"type": "function", "function": tool_schema}],
+                tool_choice="auto",
+                temperature=0.3,
+            )
+
+            function_call = response.choices[0].message.tool_calls[0].function
+            result = json.loads(function_call.arguments)
+            result = ensure_structure(result, text)
+
+            # Check completeness
+            if result["original_token"] and result["proofread_token"]:
+                return result
+            else:
+                print(f"[WARNING] Attempt {attempt}: Missing token data.")
+        except Exception as e:
+            print(f"[ERROR] Attempt {attempt}: Tool call failed.\nInput: {repr(text[:200])}")
+            print("Error:", e)
+
+    # Fallback return
+    print("[ERROR] All 3 attempts failed. Returning fallback structure.")
+    return {
+        "original": text,
+        "corrected": text,
+        "original_token": [],
+        "proofread_token": [],
+        "changes": []
+    }
 # ---------------------------
 # Async wrapper for GPT proofreading
 # ---------------------------
@@ -223,11 +247,13 @@ async def correct_paragraphs_async(
         paragraph_map.append((idx, para_id, paragraph))
         
         # DEBUGGING: Log the paragraph that's about to be proofread
-        print(f"Proofreading Paragraph {para_id}: {original_text[:100]}...")
+        print(f"Proofreading Paragraph {para_id}: {original_text}")
         tasks.append(async_gpt_proofread(para_id, original_text))
 
     # Step 2: execute all tasks concurrently
     results = await asyncio.gather(*tasks)
+    
+    # print(results)
 
       # Step 3: update paragraphs and prepare report
     for (idx, para_id, paragraph), (returned_para_id, original_text, gpt_response) in zip(paragraph_map, results):
@@ -281,7 +307,7 @@ async def correct_paragraphs_async(
         # Count word changes for this paragraph and accumulate
         word_changes_count = sum(
             1 for ch in gpt_response.get("changes", [])
-            if ch.get("type") in ["inserted", "changed", "replaced"]
+            if ch.get("type") in ["inserted", "changed", "replaced", "corrected"]
         )
         total_word_changes += word_changes_count
 

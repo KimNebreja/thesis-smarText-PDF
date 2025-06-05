@@ -86,9 +86,9 @@ if (!isset($_SESSION['user_id'])) {
                             <thead>
                                 <tr>
                                     <th>File Name</th>
-                                    <th>Original File</th>
                                     <th>Proofread File</th>
                                     <th>File Size</th>
+                                    <th>Processing Time</th>
                                     <th>Upload Date</th>
                                     <th>Comparison</th>
                                 </tr>

@@ -109,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (speechSynthesis.speaking && !speechSynthesis.paused) {
       speechSynthesis.pause()
       isPaused = true
+       setActiveButton(pauseBtn)
     }
   })
 
@@ -117,6 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(() => {
     if (utterance && speechSynthesis.speaking && !speechSynthesis.paused) {
       updateProgress()
+       setActiveButton(stopBtn)
     }
   }, 100)
 })

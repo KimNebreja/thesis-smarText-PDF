@@ -22,10 +22,30 @@ if (!isset($_SESSION['user_id'])) {
 <body>
     <div id="myModal" class="modal">
         <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <iframe id="pdfIframe" width="100%" height="500px" style="border: none;"></iframe>
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <h2 style="margin: 0;">Compare PDFs</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <!-- Left PDF: Original -->
+                <div style="flex: 1; padding-right: 5px;">
+                    <h3 style="text-align: center; margin-bottom: 10px;">Original PDF</h3>
+                    <iframe id="pdfIframe1"></iframe>
+                </div>
+
+                <!-- Right PDF: Proofread -->
+                <div style="flex: 1; padding-left: 5px;">
+                    <h3 style="text-align: center; margin-bottom: 10px;">Proofread PDF</h3>
+                    <iframe id="pdfIframe2"></iframe>
+                </div>
+            </div>
         </div>
     </div>
+
+
 
     <div class="dashboard-container">
         <nav class="sidebar">
@@ -60,11 +80,11 @@ if (!isset($_SESSION['user_id'])) {
                             <span class="button-text">Apply Changes</span>
                         </button>
                         <button class="btn-primary" id="previewBtn" onclick="displayPDF()">
-                            <span class="button-text">Preview PDF</span>
+                            <span class="button-text">Preview PDFs</span>
                         </button>
-                        <button class="btn-primary" id="downloadBtn">
+                        <!-- <button class="btn-primary" id="downloadBtn">
                             <span class="button-text">Download PDF</span>
-                        </button>
+                        </button> -->
                     </div>
                 </div>
 
@@ -199,21 +219,23 @@ if (!isset($_SESSION['user_id'])) {
         function displayPDF() {
             if (processedFileInformation) {
                 console.log(processedFileInformation[0]?.processed_file_path)
-                openModal(processedFileInformation[0]?.processed_file_path)
+                openModal(processedFileInformation[0]?.processed_file_path, processedFileInformation[0]?.file_path)
                 document.getElementById('filenamePDF').innerHTML = processedFileInformation[0]?.processed_file_path
             }
         }
 
 
 
-        function openModal(pdfPath) {
+        function openModal(pdfPath1, pdfPath2) {
             document.getElementById("myModal").style.display = 'block';
-            document.getElementById("pdfIframe").src = '../processed_pdfs/' + pdfPath;
+            document.getElementById("pdfIframe2").src = '../processed_pdfs/' + pdfPath1;
+            document.getElementById("pdfIframe1").src = pdfPath2;
         }
 
         function closeModal() {
             document.getElementById("myModal").style.display = 'none';
-            document.getElementById("pdfIframe").src = ''; // Clear the iframe source when closing
+            document.getElementById("pdfIframe1").src = '';
+            document.getElementById("pdfIframe2").src = '';
         }
 
         function getChangedParagraphs() {
@@ -344,20 +366,25 @@ if (!isset($_SESSION['user_id'])) {
                         const displayWord = token.word;
 
                         if (correction) {
-                            // Case: replaced — show dropdown
-                            if (correction.type === 'replaced' && correction.suggestions.length > 0) {
+                            // Case: replaced — show dropdown if multiple suggestions
+                            if (correction.type === 'replaced' && correction.suggestions.length > 1) {
                                 const options = [
-                                    '<option value="">choose suggestion</option>',
+                                    '<option value="">suggestion(s):</option>',
                                     ...correction.suggestions.map(s => `<option value="${s}">${s}</option>`)
                                 ].join('');
                                 return `
-                                            <span class="suggestion-container" data-idx="${token.idx}">
-                                                <span class="suggestion-word">${displayWord}</span>
-                                                <select class="floating-select" style="display:none;">
-                                                    ${options}
-                                                </select>
-                                            </span>
-                                        `;
+        <span class="suggestion-container" data-idx="${token.idx}">
+            <span class="suggestion-word">${displayWord}</span>
+            <select class="floating-select" style="display:none;">
+                ${options}
+            </select>
+        </span>
+    `;
+                            }
+
+                            // Case: replaced — use accepted word directly if there is only one suggestion
+                            if (correction.type === 'replaced' && correction.suggestions.length === 1) {
+                                return `<span class="accepted" data-idx="${token.idx}">${displayWord}</span>`;
                             }
 
                             // Case: corrected — wrap with accepted class
@@ -374,6 +401,7 @@ if (!isset($_SESSION['user_id'])) {
                             if (correction.type === 'removed') {
                                 return '';
                             }
+
                         }
 
                         // Default case — show original word
@@ -437,7 +465,7 @@ if (!isset($_SESSION['user_id'])) {
             this.disabled = true;
             this.innerHTML = 'Saving changes...';
             document.getElementById('previewBtn').disabled = true;
-            document.getElementById('downloadBtn').disabled = true;
+            // document.getElementById('downloadBtn').disabled = true;
 
             let acceptChanges = await acceptAllChanges()
 
@@ -466,7 +494,7 @@ if (!isset($_SESSION['user_id'])) {
                 showAlert('success', 'Applying changes is successful!')
                 document.getElementById('acceptAllChangesBtn').innerHTML = 'Apply Changes';
                 document.getElementById('previewBtn').disabled = false;
-                document.getElementById('downloadBtn').disabled = false;
+                // document.getElementById('downloadBtn').disabled = false;
             } else {
                 showAlert('error', 'Applying changes is unsuccessful! <br> Please try again')
             }
@@ -520,32 +548,60 @@ if (!isset($_SESSION['user_id'])) {
     .modal-content {
         border-radius: 5px;
         background-color: #fefefe;
-        margin: 0.5% auto;
-        /* 15% from the top and centered */
-        padding: 20px;
+        margin: 1% auto;
+        padding: 0;
         border: 1px solid #888;
-        width: 80%;
+        width: 90%;
         height: 95%;
-        /* Could be more or less, depending on screen size */
+        display: flex;
+        flex-direction: column;
     }
 
+    /* Modal Header */
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 20px;
+        border-bottom: 1px solid #ccc;
+        background-color: #f1f1f1;
+    }
+
+    /* Modal Body for PDFs */
+    .modal-body {
+        display: flex;
+        gap: 10px;
+        flex: 1;
+        padding: 10px;
+        overflow: hidden;
+    }
+
+    /* PDF iframes */
     .modal-content iframe {
+        width: 100%;
         height: 100%;
-        padding: 2rem;
+        border: none;
+    }
+
+    /* Labels above the PDFs */
+    .modal-body h3 {
+        font-size: 18px;
+        margin-bottom: 10px;
+        color: #333;
+        text-align: center;
     }
 
     /* The Close Button */
     .close {
         color: #aaa;
-        float: right;
         font-size: 28px;
         font-weight: bold;
+        cursor: pointer;
     }
 
     .close:hover,
     .close:focus {
         color: black;
         text-decoration: none;
-        cursor: pointer;
     }
 </style>

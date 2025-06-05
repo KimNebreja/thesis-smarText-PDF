@@ -37,7 +37,7 @@ function getProcessInformation($id)
             throw new Exception("Database connection failed.");
         }
 
-        $stmt = $conn->prepare("SELECT * FROM processed_files WHERE processed_id = :processed_id");
+        $stmt = $conn->prepare("SELECT * FROM processed_files a inner join uploads b on a.upload_id = b.upload_id WHERE a.processed_id = :processed_id");
         $stmt->bindParam(':processed_id', $id);
         $stmt->execute();
 

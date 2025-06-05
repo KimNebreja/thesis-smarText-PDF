@@ -17,9 +17,9 @@ function getProcessedUploadsByUser($userId)
                 a.upload_id,
                 b.processed_id,
                 a.original_filename,
-                a.file_path AS original_file,
                 b.processed_file_path AS proofread_file,
                 a.file_size,
+                b.processing_time,
                 a.upload_date,
                 b.proof_data_path as json_data
             FROM uploads a
@@ -38,6 +38,21 @@ function getProcessedUploadsByUser($userId)
                 $row['upload_date'] = $date->format('Y-m-d h:i:s a');
             }
         }
+
+        foreach ($results as &$row) {
+            if (isset($row['processing_time'])) {
+                $seconds = (int)$row['processing_time'];
+                $minutes = intdiv($seconds, 60);
+                $remainingSeconds = $seconds % 60;
+
+                if ($minutes > 0) {
+                    $row['processing_time'] = "{$minutes}m {$remainingSeconds}s";
+                } else {
+                    $row['processing_time'] = "{$seconds}s";
+                }
+            }
+        }
+
 
         return [
             'success' => true,
