@@ -2,23 +2,27 @@
 
 **SmarText PDF** is an intelligent PDF proofreading tool powered by **GPT-4o**. It extracts and analyzes text from PDF documents, detects grammatical and stylistic issues, and provides high-quality suggestions for improvement.
 
+---
+
 ## ✨ Features
 
 - 🔍 Extracts text from PDF documents
-- 🤖 Uses GPT-4o to detect grammar, spelling, and tone issues
-- 💡 Suggests improved phrasing and wording
-- 📄 Paragraph-by-paragraph correction with side-by-side view
+- 🤖 Uses GPT-4o for grammar, spelling, and tone correction
+- 💡 Smart suggestions for improved phrasing and wording
+- 📄 Paragraph-by-paragraph correction with side-by-side comparison
 - 📤 Export options for cleaned text or revision summaries
+- 🗂 Upload, compare, and manage your PDF files
+- 🗣 Text-to-speech for revised content
+
 ---
 
 ## Requirements
 
 - Python 3.8+
 - Microsoft Word (for PDF to Word conversion)
-- Windows OS (due to Word automation)
+- Windows OS (required for Word automation)
 - OpenAI API Key (set as `API_KEY` in your `.env` file)
 - The following Python packages (see `requirements.txt`):
-
   - `fastapi`
   - `uvicorn`
   - `python-docx`
@@ -28,107 +32,75 @@
   - `python-dotenv`
   - `asyncio`
 
-**Install all dependencies using:**
-```sh
-pip install -r requirements.txt
-```
+---
 
-**Set your OpenAI API key:**
-Create a `.env` file in your project directory with:
-```
-API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
+## 🚀 Getting Started
+
+1. **Clone the repository**
+   ```sh
+   cd C:/xampp/htdocs
+   git clone <repo-url>
+   ```
+
+2. **Install Python dependencies**
+   ```sh
+   pip install -r requirements.txt
+   ```
+
+3. **Set your OpenAI API key**
+   Create a `.env` file in your project directory with:
+   ```
+   API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   ```
+
+4. **Start the API server**
+   ```sh
+   python grammar_checker.py
+   ```
+   The server will run at [http://localhost:5000](http://localhost:5000).
+
+5. **Set up the database**
+   - Open phpMyAdmin.
+   - Create a new schema/database.
+   - Import the `database.sql` file provided in the project.
+
+6. **Start XAMPP and run Apache & MySQL**
+
+7. **Access the web app**
+   - Visit [http://localhost/SmarTextPDF_NewUI](http://localhost/SmarTextPDF_NewUI) in your browser.
 
 ---
 
-## Usage
+## 📚 Usage
 
-### 1. **Start the API server**
-
-```sh
-python grammar_checker.py
-```
-
-The server will run at `http://localhost:5000`.
+- **Upload PDFs**: Go to the Upload page to add new PDF files for proofreading.
+- **Compare PDFs**: Use the Compare page to review original and revised text side-by-side, accept suggestions, and export results.
+- **Dashboard**: View your recent uploads and proofreading statistics.
 
 ---
 
-### 2. **API Endpoint**
+## 🛠 Troubleshooting
 
-**POST** `/api/grammar-check?mode=1&file_code=your_pdf_filename&paragraph_id=1&paragraph_id=2`
-
-- `mode`: `"0"` for full document processing, `"1"` to update only selected paragraphs.
-- `file_code`: The name of your PDF file (without `.pdf` extension) located in the `original_pdfs/` folder.
-- `paragraph_id`: (Optional, for mode 1) List of paragraph IDs to update.
-
-#### Example Request
-
-```sh
-curl -X POST "http://localhost:5000/api/grammar-check?mode=1&file_code=wrong_story&paragraph_id=[1,2]"
-```
-
-#### Example Python Request
-
-```python
-import requests
-
-params = {
-    "mode": "1",
-    "file_code": "wrong_story",
-    "paragraph_id": ["1", "2"]
-}
-
-response = requests.post("http://localhost:5000/api/grammar-check", params=params)
-print(response.json())
-```
+- Ensure Microsoft Word is installed and properly licensed on your system.
+- The API server (`grammar_checker.py`) must be running for proofreading features to work.
+- If you encounter issues with file uploads, check folder permissions for `/uploads` and `/processed_pdfs`.
+- For OpenAI API errors, verify your API key in the `.env` file.
 
 ---
 
-### 3. **Response**
+## 📄 License
 
-```json
-{
-  "json_filename": "xxx_wrong_story.json",
-  "final_pdf_filename": "xxx_wrong_story.pdf",
-  "total_improvements": 12,
-  "elapsed_time_seconds": 8.34
-}
-```
-
-- `json_filename`: The JSON report file with grammar corrections details (in `jsons/`).
-- `final_pdf_filename`: The corrected PDF file (in `processed_pdfs/`).
-- `total_improvements`: Total paragraphs improved and corrected.
-- `elapsed_time_seconds`: Total processing time.
+This project is for educational and research purposes only.
 
 ---
 
-## Folder Structure
+## 🙏 Acknowledgements
 
-```
-original_pdfs/        # Place your input PDFs here
-parsing_words/        # Temporary and updated Word files
-processed_pdfs/       # Output corrected PDFs
-jsons/                # Output JSON reports
-grammar_checker.py    # Main API and logic
-```
+- [OpenAI](https://openai.com/) for GPT-4o
+- [pdf-lib](https://pdf-lib.js.org/) for PDF manipulation
+- [FastAPI](https://fastapi.tiangolo.com/) for the backend API
+- [XAMPP](https://www.apachefriends.org/) for local PHP/MySQL development
 
 ---
 
-## Notes
-
-- This project is designed for Windows due to Microsoft Word automation.
-- The API only accepts **POST** requests.
-- Grammar correction is powered by **OpenAI GPT** for high-quality, context-aware proofreading.
-- A slight difference between the original PDF and the newly generated PDF can be noticed due to the PDF to Word conversion behaviour.
-
----
-
-## License
-
-MIT License
-
----
-
-## Author
-
-Suljabay69
+Enjoy using **SmarText PDF**!
