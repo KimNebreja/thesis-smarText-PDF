@@ -5,6 +5,54 @@ session_start();
 
 try {
     if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+
+
+        function getProcessedUploadsByUser($upload_id)
+        {
+            try {
+                $conn = getDBConnection();
+                if (!$conn) {
+                    throw new Exception("Database connection failed.");
+                }
+
+                $stmt = $conn->prepare("
+                    SELECT 
+                        b.processed_id
+                    FROM uploads a
+                    INNER JOIN processed_files b ON a.upload_id = b.upload_id
+                    WHERE a.upload_id = :upload_id 
+                    AND b.processed_file_path <> '' 
+                    AND b.proof_data_path <> '' 
+                    ORDER BY a.upload_id DESC
+                    LIMIT 1
+                ");
+
+                $stmt->bindParam(':upload_id', $upload_id);
+                $stmt->execute();
+
+                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($result) {
+                    return [
+                        'success' => true,
+                        'data' => $result['processed_id']
+                    ];
+                } else {
+                    return [
+                        'success' => false,
+                        'message' => 0
+                    ];
+                }
+
+            } catch (Exception $e) {
+                return [
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ];
+            }
+        }
+
+
         // Read incoming JSON data
         $data = json_decode(file_get_contents("php://input"), true);
 
@@ -65,8 +113,20 @@ try {
             // Commit the transaction if everything goes fine
             $conn->commit();
 
-            // Return a success message
-            echo json_encode(['message' => 'success']);
+            $processing_id = getProcessedUploadsByUser($uploadId);
+
+            if ($processing_id['success']) {
+                echo json_encode([
+                    'message' => 'success',
+                    'process_id' => $processing_id['data']
+                ]);
+            } else {
+                echo json_encode([
+                    'message' => 'error',
+                    'error' => $processing_id['message']
+                ]);
+            }
+
         } catch (Exception $e) {
             // Rollback in case of failure
             $conn->rollBack();

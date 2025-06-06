@@ -286,7 +286,7 @@ session_start();
 
                         if (updateProcessFile.message == 'success') {
                             let secondsLeft = 5;
-                            showAlert('success', `File uploaded successfully! <br> Redirecting to Dashboard in ${secondsLeft}...`);
+                            showAlert('success', `File uploaded successfully! <br> Redirecting to Compare PDF in ${secondsLeft}...`);
 
                             uploadBtn.innerHTML = 'Upload and Process';
                             document.getElementById('uploadBtn').disabled = true;
@@ -296,13 +296,24 @@ session_start();
 
                             const countdownInterval = setInterval(() => {
                                 secondsLeft--;
-                                showAlert('success', `File uploaded successfully! <br> Redirecting to Dashboard in ${secondsLeft}...`);
+                                showAlert('success', `File uploaded successfully! <br> Redirecting to Compare PDF in ${secondsLeft}...`);
                             }, 1000);
 
                             uploadBtn.innerHTML = 'Upload and Process';
                             setTimeout(() => {
                                 clearInterval(countdownInterval);
-                                window.location.href = './dashboard.php';
+                                    fetch(`../api/hash_id.php?processed_id=${updateProcessFile.process_id}`)
+                                            .then(response => response.json())
+                                            .then(data => {
+                                                if (data.encoded_id) {
+                                                    window.location.href = `./comparison.php?id=${encodeURIComponent(data.encoded_id)}`;
+                                                } else {
+                                                    console.error('Error hashing processed_id:', data.error);
+                                                }
+                                            })
+                                            .catch(error => {
+                                                console.error('Error fetching hashed ID:', error);
+                                            });
                             }, 5000);
                         } else {
                             showAlert('error', 'Proofreading failed please try again.');
