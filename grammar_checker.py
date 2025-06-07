@@ -142,18 +142,22 @@ async def gpt_proofread(text):
         "You may receive content in various languages. Proofread in the language the text is written in — be bilingual and flexible. \n"
         "Do not translate unless explicitly asked. Your goal is to refine the original language, not convert it. \n\n"
 
-        "Do not modify or suggest changes to any personal names, organization names, or place names. "
-        "If a word is likely a proper name (e.g., 'Maria', 'Dr. Ahmed', 'New York', 'Google'), exclude it from proofreading. "
-        "Keep it exactly as-is in both proofread_token and changes. "
-        "This includes names that appear after titles (e.g., Mr., Ms., Dr., Prof.) or as standalone capitalized terms in appropriate contexts. "
-        "If unsure whether a word is a name, leave it unchanged.\n\n"
+        "Do not modify names of people, places, companies, or titles — even if they appear to be misspelled, uncapitalized, or stylized. "
+        "Preserve them exactly as they appear in the original text, unless the correction is absolutely unambiguous (e.g., fixing 'jonh' to 'John' when the context clearly indicates a typo). "
+        "Avoid guessing or rewriting names, especially rare, creative, or user-generated ones like handles or nicknames. \n\n"
+
+        "Examples:\n"
+        "- Leave names like 'john smith', 'Gooogle', 'mcdonalds', or 'Elonn' unchanged.\n"
+        "- Do not correct 'Jhon' to 'John' unless it's clearly a typo.\n"
+        "- Do not change 'may' to 'might' if 'May' is a name or month.\n"
+        "- Do not alter stylized names like 'iPhone', 'eBay', or usernames like '@daniel42'.\n\n"
 
         "Your output must strictly use the function proofread_output with all required fields: "
         "original, corrected, original_token, proofread_token, and changes.\n\n"
 
         "Each token must be processed as a word or punctuation mark — no grouping or skipping. "
         "If punctuation changes (e.g., '.', ',', '?', '!') or is added/removed, you must include it in changes. "
-        "If a token is part of a numbered heading or subheading (e.g., '1 ', '1.', '1.1.', 'I.', 'A)'), retain the numbering or roman numeral as-is. Do not modify or remove it. "
+        "If a token is part of a numbered heading or subheading (e.g., '1 ', '1.', '1.1.', 'I.', 'A)'), retain the numbering or Roman numeral as-is. Do not modify or remove it. "
         "Maintain accurate idx for both original_token and proofread_token. \n\n"
 
         "For each change:\n"
@@ -162,7 +166,7 @@ async def gpt_proofread(text):
         "- Use inserted if new words were added.\n"
         "- Use removed if unnecessary words or punctuation were deleted.\n\n"
 
-        "Every change must include original_word, proofread_word, and suggestion even if suggestions only include the accepted version.\n"
+        "Every change must include original_word, proofread_word, and suggestion even if suggestions only include the accepted version. "
         "Ensure the suggestion list is meaningful — if only one correction exists, include it alone. If multiple rewrites are possible, list alternatives.\n\n"
 
         "Do not skip punctuation or formatting changes. The goal is accurate proofreading that can be traced token-by-token and visually rendered with detailed changes."
