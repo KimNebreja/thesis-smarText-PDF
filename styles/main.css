@@ -1069,7 +1069,7 @@ p {
 }
 
 .suggestion {
-    background: rgba(212, 135, 41, 0.982);
+    background: #fcef4480;
     padding: 2px 4px;
     border-radius: 3px;
     color: var(--color-text);
@@ -1082,7 +1082,7 @@ p {
 
 .suggestion-word {
     color: var(--color-text);
-        background: rgba(212, 135, 41, 0.982);
+        background: #fcef4480;
             padding: 2px 4px;
             border-radius: 3px;
   cursor: pointer;
@@ -1094,7 +1094,7 @@ p {
 
 .accepted {
     color: var(--color-text);
-    background: #79d47d;
+    background: #8cc15a91;
     padding: 2px 4px;
     border-radius: 3px;
     cursor: pointer;

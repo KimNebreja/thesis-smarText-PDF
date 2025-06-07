@@ -148,7 +148,7 @@ async def gpt_proofread(text):
 
         "Each token must be processed as a word or punctuation mark — no grouping or skipping."
         "If punctuation changes (e.g., '.', ',', '?', '!') or is added/removed, you must include it in `changes`."
-        "If a token is part of a numbered heading or subheading (e.g., '1.'', '1.1.', 'I.', 'A)'), retain the numbering or roman numeral as-is. Do not modify or remove it."
+        "If a token is part of a numbered heading or subheading (e.g., '1 ', '1.', '1.1.', 'I.', 'A)'), retain the numbering or roman numeral as-is. Do not modify or remove it."
         "Maintain accurate `idx` for both `original_token` and `proofread_token`. \n\n"
 
         "For each change:\n"
